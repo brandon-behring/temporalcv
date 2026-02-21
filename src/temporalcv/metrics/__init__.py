@@ -36,6 +36,10 @@ References
 - Theil (1966). Applied Economic Forecasting.
 """
 
+from __future__ import annotations
+
+from numpy.typing import ArrayLike
+
 from temporalcv.metrics.asymmetric import (
     compute_asymmetric_mape,
     compute_directional_loss,
@@ -92,6 +96,61 @@ from temporalcv.metrics.volatility_weighted import (
     compute_volatility_weighted_mae,
 )
 
+# ---------------------------------------------------------------------------
+# Convenience aliases for README Quick Start
+# ---------------------------------------------------------------------------
+
+#: Alias for :func:`compute_mase` — scale-free error relative to naive forecast.
+mase = compute_mase
+
+
+def mc_skill_score(
+    actuals: ArrayLike,
+    predictions: ArrayLike,
+    *,
+    threshold: float | None = None,
+    threshold_percentile: float = 70.0,
+) -> float:
+    """Return the Move-Conditional Skill Score as a scalar float.
+
+    Convenience wrapper around :func:`~temporalcv.persistence.compute_move_conditional_metrics`
+    for quick one-liner evaluation.
+
+    Parameters
+    ----------
+    actuals : array-like
+        Actual changes / returns.
+    predictions : array-like
+        Predicted changes / returns.
+    threshold : float, optional
+        Move threshold.  If *None*, auto-computed from *actuals*
+        at *threshold_percentile*.
+    threshold_percentile : float, default=70.0
+        Percentile for auto-threshold (used only when *threshold* is None).
+
+    Returns
+    -------
+    float
+        MC-SS ∈ (-∞, 1].  Higher is better; 0 = no skill over persistence.
+
+    Examples
+    --------
+    >>> from temporalcv.metrics import mc_skill_score
+    >>> print(f"MC-SS: {mc_skill_score(actual, predicted):.3f}")
+    """
+    import numpy as np
+
+    from temporalcv.persistence import compute_move_conditional_metrics
+
+    result = compute_move_conditional_metrics(
+        predictions=np.asarray(predictions),
+        actuals=np.asarray(actuals),
+        threshold=threshold,
+        threshold_percentile=threshold_percentile,
+    )
+    return result.skill_score
+
+
 __all__ = [
     # Core metrics
     "compute_mae",
@@ -144,4 +203,7 @@ __all__ = [
     "compute_volatility_weighted_mae",
     "VolatilityStratifiedResult",
     "compute_volatility_stratified_metrics",
+    # Convenience aliases
+    "mase",
+    "mc_skill_score",
 ]

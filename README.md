@@ -168,7 +168,7 @@ pip install temporalcv[all]          # Everything
 
 **Core**: numpy >= 1.23, scipy >= 1.9, scikit-learn >= 1.1, pandas >= 1.5
 
-**Platforms**: Linux, macOS, Windows | **Python**: 3.9–3.12
+**Platforms**: Linux, macOS, Windows | **Python**: 3.10+
 
 ---
 
