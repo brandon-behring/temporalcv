@@ -80,3 +80,12 @@ CURRENT_WORK.md
 codex-*.md
 gemini_*.md
 ROADMAP.md
+
+# Security - secrets and credentials
+*.key
+*.pem
+*credentials*
+*.secret
+
+# Internal
+CLAUDE.md
