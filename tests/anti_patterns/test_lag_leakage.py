@@ -121,9 +121,9 @@ class TestLagLeakageDetection:
         # This should catch the suspiciously good fit
         assert result.status == GateStatus.HALT
         assert result.metric_value is not None
-        assert (
-            result.metric_value > 0.05
-        ), f"Expected significant improvement, got {result.metric_value}"
+        assert result.metric_value > 0.05, (
+            f"Expected significant improvement, got {result.metric_value}"
+        )
 
     def test_no_false_positive_on_random_data(self) -> None:
         """

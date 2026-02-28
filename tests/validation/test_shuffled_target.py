@@ -136,13 +136,13 @@ class TestShuffledTargetValidation:
 
         # A model that exploits temporal structure WILL beat shuffled
         # significantly - this is expected and correct behavior
-        assert (
-            result.status == GateStatus.HALT
-        ), "Temporal model should trigger gate (it's exploiting structure)"
+        assert result.status == GateStatus.HALT, (
+            "Temporal model should trigger gate (it's exploiting structure)"
+        )
         # The key insight: large improvement ratio confirms temporal exploitation
-        assert (
-            result.metric_value > 0.3
-        ), "Strong temporal model should show large improvement over shuffled"
+        assert result.metric_value > 0.3, (
+            "Strong temporal model should show large improvement over shuffled"
+        )
 
     def test_threshold_default_value(self) -> None:
         """Default threshold should be 0.05 per SPECIFICATION.md (effect_size mode)."""
