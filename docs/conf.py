@@ -96,16 +96,25 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "audits"]
 
 # -- Options for HTML output -------------------------------------------------
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
+html_title = "temporalcv"
 html_theme_options = {
-    "navigation_depth": 4,
-    "collapse_navigation": False,
-    "sticky_navigation": True,
-    "includehidden": True,
-    "titles_only": False,
+    "light_css_variables": {
+        "color-brand-primary": "#2563eb",
+        "color-brand-content": "#2563eb",
+    },
+    "dark_css_variables": {
+        "color-brand-primary": "#60a5fa",
+        "color-brand-content": "#60a5fa",
+    },
+    "sidebar_hide_name": False,
+    "navigation_with_keys": True,
+    "top_of_page_button": "edit",
+    "source_repository": "https://github.com/brandon-behring/temporalcv",
+    "source_branch": "main",
+    "source_directory": "docs/",
 }
 html_static_path = ["_static"]
-html_css_files = []
 
 # -- Options for LaTeX output ------------------------------------------------
 
