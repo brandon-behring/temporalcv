@@ -14,8 +14,10 @@ is computing rolling statistics (like 13-week volatility) on the FULL
 series before train/test split, leaking future information into features.
 
 The shuffled target test catches this: if your model beats a baseline
-trained on randomized targets, the features themselves contain target
-information — a definitive leakage signal.
+trained on randomized targets, the features carry predictive structure the
+labels should not have supplied — a signal to investigate. A HALT means
+"legitimate temporal pattern or leakage?" (see the README); it is not, by
+itself, a leakage diagnosis.
 
 Key Insight
 -----------
@@ -346,8 +348,9 @@ def demonstrate_leakage_detection():
     print("=" * 70)
     print(
         """
-1. The SHUFFLED TARGET TEST is the definitive leakage detector.
-   - If your model beats randomized targets, features encode target info.
+1. The SHUFFLED TARGET TEST is a leakage DETECTOR, not a diagnosis.
+   - If your model beats randomized targets, investigate: legitimate
+     temporal pattern or leakage? (README: HALT = signal detected).
    - This catches rolling stats computed on full series, lookahead bias, etc.
 
 2. Common leakage sources in time-series:
