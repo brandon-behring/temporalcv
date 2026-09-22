@@ -105,7 +105,11 @@ jobs:
 
       - name: Security audit
         run: |
-          python -m pip install --upgrade pip
+          # setuptools is ambient in the runner's Python install (not a
+          # declared temporalcv dependency); upgrade it explicitly so
+          # pip-audit -- which scans the whole environment -- doesn't flag
+          # a stale bundled copy (e.g. PYSEC-2026-3447, fixed in 83.0.0).
+          python -m pip install --upgrade pip setuptools
           pip install -e ".[dev]"
           pip-audit
 
