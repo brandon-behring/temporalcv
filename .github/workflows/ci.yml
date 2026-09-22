@@ -44,7 +44,8 @@ jobs:
           verbose: true
 
       - name: Type check
-        run: mypy src/temporalcv --show-error-codes
+        # Check against the runner's Python: numpy>=2.5 stubs use PEP 695 `type` statements (3.12+ syntax).
+        run: mypy src/temporalcv --show-error-codes --python-version ${{ matrix.python-version }}
 
       - name: Lint
         run: ruff check src/temporalcv tests/
