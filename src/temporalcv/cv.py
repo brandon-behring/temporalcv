@@ -259,7 +259,7 @@ class SplitResult:
     @property
     def absolute_errors(self) -> np.ndarray:
         """Absolute prediction errors."""
-        return cast(np.ndarray, np.abs(self.errors))
+        return cast(np.ndarray, np.abs(self.errors))  # type: ignore[redundant-cast]  # redundant only under numpy>=2.5 stubs
 
     @property
     def mae(self) -> float:
@@ -388,7 +388,7 @@ class WalkForwardResults:
     @property
     def absolute_errors(self) -> np.ndarray:
         """All absolute errors concatenated."""
-        return cast(np.ndarray, np.abs(self.errors))
+        return cast(np.ndarray, np.abs(self.errors))  # type: ignore[redundant-cast]  # redundant only under numpy>=2.5 stubs
 
     @property
     def mae(self) -> float:

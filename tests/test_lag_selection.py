@@ -35,6 +35,25 @@ def generate_ar(n: int, coeffs: list[float], seed: int = 42) -> np.ndarray:
     return series
 
 
+def _raise_type_error(*args: object, **kwargs: object) -> None:
+    """Stand-in for ``AutoReg`` that raises ``TypeError``.
+
+    Simulates an incompatible statsmodels signature (e.g. a removed/renamed
+    keyword argument), independent of what statsmodels actually accepts at
+    test time.
+    """
+    raise TypeError("simulated incompatible AutoReg signature")
+
+
+def _raise_value_error(*args: object, **kwargs: object) -> None:
+    """Stand-in for ``AutoReg`` that raises ``ValueError``.
+
+    Simulates a genuine per-lag fit failure (e.g. too few observations
+    remain for this lag/hold_back combination).
+    """
+    raise ValueError("simulated fit failure")
+
+
 class TestSelectLagPACF:
     """Tests for select_lag_pacf function."""
 
@@ -488,7 +507,7 @@ class TestFixedSampleSelection:
 
         ar1 = generate_ar(100, [0.7], seed=42)
         ours = select_lag_bic(ar1, max_lag=20).optimal_lag
-        ref = ar_select_order(ar1, maxlag=20, ic="bic", old_names=False).ar_lags
+        ref = ar_select_order(ar1, maxlag=20, ic="bic").ar_lags
         assert ours == max(ref)  # both select lag 1
 
     def test_all_candidates_share_common_sample(self) -> None:
@@ -500,9 +519,7 @@ class TestFixedSampleSelection:
         from statsmodels.tsa.ar_model import AutoReg
 
         ar1 = generate_ar(100, [0.7], seed=42)
-        nobs = {
-            AutoReg(ar1, lags=lag, old_names=False, hold_back=20).fit().nobs for lag in range(1, 21)
-        }
+        nobs = {AutoReg(ar1, lags=lag, hold_back=20).fit().nobs for lag in range(1, 21)}
         assert nobs == {80}  # n - max_lag; the comparability the fix enforces
 
     def test_suggest_cv_gap_aic_path_not_inflated(self) -> None:
@@ -511,3 +528,76 @@ class TestFixedSampleSelection:
         # pinned it, so the gap was ~23. The fixed selector recovers a small order.
         gap = suggest_cv_gap(generate_ar(200, [0.5], seed=0), horizon=1, method="aic")
         assert gap <= 3
+
+
+class TestUnexpectedFitErrorsPropagate:
+    """Regression tests for the narrowed except around AutoReg fitting.
+
+    Before this fix, the per-lag fit loop in ``select_lag_aic``/``select_lag_bic``
+    wrapped both the ``AutoReg(...)`` call and ``.fit()`` in a bare
+    ``except Exception``. When statsmodels stopped accepting
+    ``AutoReg(..., old_names=False)``, every candidate lag raised the same
+    ``TypeError``, every criterion value was recorded as infinity, and
+    because ``min()`` breaks ties by returning the first candidate, the
+    function silently returned ``optimal_lag=1`` -- with no exception and no
+    other indication that fitting had failed for every single lag.
+
+    The fix narrows the except clause to ``(ValueError, LinAlgError)``, the
+    exceptions a genuine per-lag fit failure can actually raise on this call
+    path, so any other exception (a real bug, like the TypeError above)
+    propagates instead of being swallowed.
+    """
+
+    def test_aic_recovers_clear_ar2_order(self) -> None:
+        """A strong, unambiguous AR(2) series selects lag 2 via AIC.
+
+        Regression guard: if every per-lag fit silently "failed" (as it did
+        under the ``old_names=False`` bug), every criterion value ties at
+        infinity and ``min()`` returns the first tested lag (1), not 2. This
+        AR(2) makes lag 1 a clearly worse fit than lag 2 (see the criterion
+        margins asserted via seed/coeffs choice), so a regression here fails
+        loudly instead of coincidentally matching like a true AR(1) would.
+        """
+        ar2 = generate_ar(500, [0.6, 0.3], seed=0)
+        result = select_lag_aic(ar2, max_lag=10)
+        assert result.optimal_lag == 2
+        assert result.criterion_values[2] < result.criterion_values[1]
+
+    def test_bic_recovers_clear_ar2_order(self) -> None:
+        """Same guard as above, via BIC."""
+        ar2 = generate_ar(500, [0.6, 0.3], seed=0)
+        result = select_lag_bic(ar2, max_lag=10)
+        assert result.optimal_lag == 2
+        assert result.criterion_values[2] < result.criterion_values[1]
+
+    def test_aic_propagates_unexpected_typeerror(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An unexpected TypeError from AutoReg must propagate, not be
+        silently scored as an infinite-criterion fit failure."""
+        monkeypatch.setattr("temporalcv.lag_selection.AutoReg", _raise_type_error)
+
+        with pytest.raises(TypeError, match="simulated incompatible AutoReg signature"):
+            select_lag_aic(generate_ar(100, [0.7], seed=1), max_lag=5)
+
+    def test_bic_propagates_unexpected_typeerror(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Same as above, for select_lag_bic."""
+        monkeypatch.setattr("temporalcv.lag_selection.AutoReg", _raise_type_error)
+
+        with pytest.raises(TypeError, match="simulated incompatible AutoReg signature"):
+            select_lag_bic(generate_ar(100, [0.7], seed=1), max_lag=5)
+
+    def test_genuine_fit_failure_still_scored_as_infinity(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A genuine fit failure (ValueError) is still caught and scored as
+        infinity rather than propagated -- the narrowed except must not be
+        over-narrowed to the point of losing the original graceful-degradation
+        behavior for real per-lag fit failures.
+        """
+        monkeypatch.setattr("temporalcv.lag_selection.AutoReg", _raise_value_error)
+
+        result = select_lag_aic(generate_ar(100, [0.7], seed=2), max_lag=5)
+
+        assert all(v == float("inf") for v in result.criterion_values.values())
+        # Every candidate ties at inf; min() returns the first tested lag (1).
+        # This is pre-existing tie-break behavior, not something this fix changes.
+        assert result.optimal_lag == 1

@@ -242,11 +242,21 @@ def select_lag_aic(
     # are comparable across lags rather than biased toward larger lags (#49).
     for lag in all_lags:
         try:
-            model = AutoReg(arr, lags=lag, old_names=False, hold_back=max_lag_to_test)
+            model = AutoReg(arr, lags=lag, hold_back=max_lag_to_test)
             result = model.fit()
             criterion_values[lag] = float(result.aic)
-        except Exception:
-            # If fitting fails, use infinity
+        except (ValueError, np.linalg.LinAlgError):
+            # Genuine fit failures only: ValueError covers AutoReg's own input
+            # validation (e.g. too few observations remain for this
+            # lag/hold_back combination), and LinAlgError covers numerical
+            # failure of the underlying OLS solve (e.g. a singular design
+            # matrix). Score those as infinity so this lag loses the min()
+            # comparison below. Anything else -- e.g. a TypeError from an
+            # incompatible statsmodels signature -- is a bug, not a fit
+            # failure, and must propagate instead of being silently scored as
+            # "this lag failed". (A bare `except Exception` here once turned a
+            # statsmodels TypeError into a fabricated optimal_lag=1 with no
+            # error at all.)
             criterion_values[lag] = float("inf")
 
     # Find lag with minimum AIC
@@ -326,11 +336,15 @@ def select_lag_bic(
     # are comparable across lags rather than biased toward larger lags (#49).
     for lag in all_lags:
         try:
-            model = AutoReg(arr, lags=lag, old_names=False, hold_back=max_lag_to_test)
+            model = AutoReg(arr, lags=lag, hold_back=max_lag_to_test)
             result = model.fit()
             criterion_values[lag] = float(result.bic)
-        except Exception:
-            # If fitting fails, use infinity
+        except (ValueError, np.linalg.LinAlgError):
+            # See the matching except clause in select_lag_aic above: only
+            # genuine per-lag fit failures are scored as infinity here; any
+            # other exception (e.g. a TypeError from an incompatible
+            # statsmodels signature) propagates instead of being silently
+            # swallowed.
             criterion_values[lag] = float("inf")
 
     # Find lag with minimum BIC
